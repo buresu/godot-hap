@@ -22,7 +22,7 @@ cmake -G "Visual Studio 18 2026" -A [x64|Win32] ..
 cmake --build . --config [Debug|Release] --target install
 
 [Mac, Linux]
-cmake -DCMAKE_BUILD_TYPE=[Debug] ..
+cmake -DCMAKE_BUILD_TYPE=[Debug|Release] ..
 cmale --build . --target install
 ```
 
