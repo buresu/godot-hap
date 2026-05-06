@@ -198,13 +198,9 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
     if (image.is_null()) {
         return;
     }
+    image->decompress();
 
-    if (texture.is_null()) {
-        texture = ImageTexture::create_from_image(image);
-        godot_format = fmt;
-    } else {
-        texture->update(image);
-    }
+    texture->update(image);
 }
 
 // ---------------------------------------------------------------------------
@@ -287,6 +283,16 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
 
     UtilityFunctions::print("GDHapVideoStream: video_track=", video_track,
             " size=", width, "x", height, " frames=", frame_count);
+
+    // Pre-allocate a black RGBA8 texture so _get_texture() never returns null.
+    // VideoStreamPlayer may cache the result of the first _get_texture() call.
+    {
+        PackedByteArray blank;
+        blank.resize(width * height * 4);
+        blank.fill(0);
+        Ref<Image> blank_img = Image::create_from_data(width, height, false, Image::FORMAT_RGBA8, blank);
+        texture = ImageTexture::create_from_image(blank_img);
+    }
 
     double timescale = static_cast<double>(track.timescale);
 

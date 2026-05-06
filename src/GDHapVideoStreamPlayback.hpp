@@ -38,7 +38,6 @@ class GDHapVideoStreamPlayback : public VideoStreamPlayback {
     std::vector<uint8_t> decode_buf;
 
     Ref<ImageTexture> texture;
-    Image::Format godot_format = Image::FORMAT_MAX;
 
     double time = 0.0;
     int current_frame = -1;
