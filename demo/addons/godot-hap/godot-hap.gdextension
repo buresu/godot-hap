@@ -10,8 +10,10 @@ windows.debug.x86_64 = "res://addons/godot-hap/bin/libgodot-hap.windows.debug.x8
 windows.release.x86_64 = "res://addons/godot-hap/bin/libgodot-hap.windows.release.x86_64.dll"
 windows.debug.arm64 = "res://addons/godot-hap/bin/libgodot-hap.windows.debug.arm64.dll"
 windows.release.arm64 = "res://addons/godot-hap/bin/libgodot-hap.windows.release.arm64.dll"
+
 macos.debug = "res://addons/godot-hap/bin/libgodot-hap.macos.debug.x86_64.dylib"
 macos.release = "res://addons/godot-hap/bin/libgodot-hap.macos.release.x86_64.dylib"
+
 linux.debug.x86_64 = "res://addons/godot-hap/bin/libgodot-hap.linux.debug.x86_64.so"
 linux.release.x86_64 = "res://addons/godot-hap/bin/libgodot-hap.linux.release.x86_64.so"
 linux.debug.arm64 = "res://addons/godot-hap/bin/libgodot-hap.linux.debug.arm64.so"
