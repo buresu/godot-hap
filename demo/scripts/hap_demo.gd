@@ -33,6 +33,13 @@ func _on_file_selected(path: String) -> void:
 	stop_button.disabled = false
 	play_pause_button.text = "Pause"
 	status_label.text = "Playing: " + path.get_file()
+	await get_tree().process_frame
+	if player.stream != null and player.stream.is_ycocg():
+		var mat := ShaderMaterial.new()
+		mat.shader = load("res://addons/godot-hap/shaders/ycocg.gdshader")
+		player.material = mat
+	else:
+		player.material = null
 
 func _on_play_pause_pressed() -> void:
 	if player.is_playing():

@@ -213,14 +213,15 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
         return;
     }
 
+    RenderingDevice *rd = RenderingServer::get_singleton()->get_rendering_device();
+    if (!rd || !texture_rid.is_valid()) {
+        return;
+    }
+
     PackedByteArray pba;
     pba.resize(static_cast<int64_t>(bytes_used));
     memcpy(pba.ptrw(), decode_buf.data(), bytes_used);
-
-    RenderingDevice *rd = RenderingServer::get_singleton()->get_rendering_device();
-    if (rd && texture_rid.is_valid()) {
-        rd->texture_update(texture_rid, 0, pba);
-    }
+    rd->texture_update(texture_rid, 0, pba);
 }
 
 // ---------------------------------------------------------------------------
@@ -319,8 +320,10 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
     }
     total_duration = accumulated;
 
-    // Pre-allocate a GPU-compressed texture via RenderingDevice.
-    // Detect HAP format from the first frame to set the correct BC format.
+    // Pre-allocate a GPU texture via RenderingDevice.
+    // Detect HAP format from the first frame.
+    // All formats (including YCoCg_DXT5) are uploaded as compressed BC textures;
+    // Hap Q color conversion is handled by a GPU shader.
     {
         unsigned int hap_fmt = HapTextureFormat_RGB_DXT1;
         if (!frames.empty()) {
@@ -333,12 +336,13 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
                 }
             }
         }
+        video_hap_format = hap_fmt;
+
+        RenderingDevice::DataFormat rd_fmt = hap_to_rd_format(hap_fmt);
+        size_t blank_size = dxt_buffer_size(hap_fmt, width, height);
 
         RenderingDevice *rd = RenderingServer::get_singleton()->get_rendering_device();
         if (rd) {
-            RenderingDevice::DataFormat rd_fmt = hap_to_rd_format(hap_fmt);
-            size_t blank_size = dxt_buffer_size(hap_fmt, width, height);
-
             PackedByteArray blank;
             blank.resize(static_cast<int64_t>(blank_size));
             blank.fill(0);
@@ -462,4 +466,10 @@ Ref<Texture2D> GDHapVideoStreamPlayback::_get_texture() const {
 // GDExtension binding
 // ---------------------------------------------------------------------------
 
-void GDHapVideoStreamPlayback::_bind_methods() {}
+bool GDHapVideoStreamPlayback::is_ycocg() const {
+    return video_hap_format == HapTextureFormat_YCoCg_DXT5;
+}
+
+void GDHapVideoStreamPlayback::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("is_ycocg"), &GDHapVideoStreamPlayback::is_ycocg);
+}

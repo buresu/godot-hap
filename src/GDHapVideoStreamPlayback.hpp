@@ -41,6 +41,7 @@ class GDHapVideoStreamPlayback : public VideoStreamPlayback {
 
     Ref<Texture2DRD> texture;
     RID texture_rid;
+    unsigned int video_hap_format = 0;
 
     double time = 0.0;
     int current_frame = -1;
@@ -65,6 +66,7 @@ public:
     ~GDHapVideoStreamPlayback();
 
     void open(const String &p_path);
+    bool is_ycocg() const;
 
     void _play() override;
     void _stop() override;
