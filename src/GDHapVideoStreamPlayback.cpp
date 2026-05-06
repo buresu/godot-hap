@@ -282,9 +282,6 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
     }
     frame_count = track.sample_count;
 
-    UtilityFunctions::print("GDHapVideoStream: video_track=", video_track,
-            " size=", width, "x", height, " frames=", frame_count);
-
     double timescale = static_cast<double>(track.timescale);
 
     frames.resize(frame_count);
