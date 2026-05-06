@@ -18,7 +18,7 @@ cd godot-hap
 mkdir build && cd build
 
 [Windows]
-cmake -G "Visual Studio 18 2026" -A [x64|Win32] ..
+cmake -G "Visual Studio 18 2026" ..
 cmake --build . --config [Debug|Release] --target install
 
 [Mac, Linux]
