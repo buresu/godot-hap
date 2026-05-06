@@ -37,13 +37,13 @@ jobs:
             cmake_args: -A ARM64
             ext: dll
           - os: macos
-            arch: x86_64
+            arch: arm64
             config: Debug
             runner: macos-latest
             cmake_args: ''
             ext: dylib
           - os: macos
-            arch: x86_64
+            arch: arm64
             config: Release
             runner: macos-latest
             cmake_args: ''
