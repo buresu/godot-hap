@@ -3,9 +3,9 @@
 #include <godot_cpp/classes/video_stream.hpp>
 #include <godot_cpp/classes/video_stream_playback.hpp>
 
-class GDHapVideoStreamPlayback;
+namespace godot {
 
-using namespace godot;
+class GDHapVideoStreamPlayback;
 
 class GDHapVideoStream : public VideoStream {
     GDCLASS(GDHapVideoStream, VideoStream)
@@ -20,3 +20,5 @@ public:
 private:
     Ref<GDHapVideoStreamPlayback> _pb;
 };
+
+} // namespace godot

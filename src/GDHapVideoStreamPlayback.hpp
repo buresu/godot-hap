@@ -13,7 +13,7 @@
 
 #include "hap.h"
 
-using namespace godot;
+namespace godot {
 
 class GDHapVideoStreamPlayback : public VideoStreamPlayback {
     GDCLASS(GDHapVideoStreamPlayback, VideoStreamPlayback)
@@ -79,3 +79,5 @@ public:
     int _get_channels() const override { return 0; }
     int32_t _get_mix_rate() const override { return 0; }
 };
+
+} // namespace godot
