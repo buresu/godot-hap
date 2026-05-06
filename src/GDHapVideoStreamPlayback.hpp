@@ -4,7 +4,9 @@
 #include <vector>
 
 #include <godot_cpp/classes/image.hpp>
-#include <godot_cpp/classes/image_texture.hpp>
+#include <godot_cpp/classes/rendering_device.hpp>
+#include <godot_cpp/classes/rendering_server.hpp>
+#include <godot_cpp/classes/texture2drd.hpp>
 #include <godot_cpp/classes/video_stream_playback.hpp>
 
 #define MP4D_64BIT_SUPPORTED 1
@@ -37,7 +39,8 @@ class GDHapVideoStreamPlayback : public VideoStreamPlayback {
     std::vector<uint8_t> read_buf;
     std::vector<uint8_t> decode_buf;
 
-    Ref<ImageTexture> texture;
+    Ref<Texture2DRD> texture;
+    RID texture_rid;
 
     double time = 0.0;
     int current_frame = -1;
@@ -48,6 +51,7 @@ class GDHapVideoStreamPlayback : public VideoStreamPlayback {
     static void hap_decode_callback(HapDecodeWorkFunction function, void *p, unsigned int count, void *info);
 
     static Image::Format hap_to_godot_format(unsigned int hap_format);
+    static RenderingDevice::DataFormat hap_to_rd_format(unsigned int hap_format);
     static size_t dxt_buffer_size(unsigned int hap_format, int w, int h);
 
     int find_frame(double p_time) const;

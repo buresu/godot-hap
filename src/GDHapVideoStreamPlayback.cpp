@@ -3,7 +3,10 @@
 
 #include <algorithm>
 
+#include <godot_cpp/classes/rd_texture_format.hpp>
+#include <godot_cpp/classes/rd_texture_view.hpp>
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/variant/typed_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 using namespace godot;
@@ -52,6 +55,26 @@ Image::Format GDHapVideoStreamPlayback::hap_to_godot_format(unsigned int hap_for
             return Image::FORMAT_BPTC_RGBF;
         default:
             return Image::FORMAT_MAX;
+    }
+}
+
+RenderingDevice::DataFormat GDHapVideoStreamPlayback::hap_to_rd_format(unsigned int hap_format) {
+    switch (hap_format) {
+        case HapTextureFormat_RGB_DXT1:
+            return RenderingDevice::DATA_FORMAT_BC1_RGB_UNORM_BLOCK;
+        case HapTextureFormat_RGBA_DXT5:
+        case HapTextureFormat_YCoCg_DXT5:
+            return RenderingDevice::DATA_FORMAT_BC3_UNORM_BLOCK;
+        case HapTextureFormat_A_RGTC1:
+            return RenderingDevice::DATA_FORMAT_BC4_UNORM_BLOCK;
+        case HapTextureFormat_RGBA_BPTC_UNORM:
+            return RenderingDevice::DATA_FORMAT_BC7_UNORM_BLOCK;
+        case HapTextureFormat_RGB_BPTC_UNSIGNED_FLOAT:
+            return RenderingDevice::DATA_FORMAT_BC6H_UFLOAT_BLOCK;
+        case HapTextureFormat_RGB_BPTC_SIGNED_FLOAT:
+            return RenderingDevice::DATA_FORMAT_BC6H_SFLOAT_BLOCK;
+        default:
+            return RenderingDevice::DATA_FORMAT_MAX;
     }
 }
 
@@ -194,13 +217,10 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
     pba.resize(static_cast<int64_t>(bytes_used));
     memcpy(pba.ptrw(), decode_buf.data(), bytes_used);
 
-    Ref<Image> image = Image::create_from_data(width, height, false, fmt, pba);
-    if (image.is_null()) {
-        return;
+    RenderingDevice *rd = RenderingServer::get_singleton()->get_rendering_device();
+    if (rd && texture_rid.is_valid()) {
+        rd->texture_update(texture_rid, 0, pba);
     }
-    image->decompress();
-
-    texture->update(image);
 }
 
 // ---------------------------------------------------------------------------
@@ -284,16 +304,6 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
     UtilityFunctions::print("GDHapVideoStream: video_track=", video_track,
             " size=", width, "x", height, " frames=", frame_count);
 
-    // Pre-allocate a black RGBA8 texture so _get_texture() never returns null.
-    // VideoStreamPlayer may cache the result of the first _get_texture() call.
-    {
-        PackedByteArray blank;
-        blank.resize(width * height * 4);
-        blank.fill(0);
-        Ref<Image> blank_img = Image::create_from_data(width, height, false, Image::FORMAT_RGBA8, blank);
-        texture = ImageTexture::create_from_image(blank_img);
-    }
-
     double timescale = static_cast<double>(track.timescale);
 
     frames.resize(frame_count);
@@ -308,6 +318,54 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
         accumulated = frames[i].time + frames[i].duration;
     }
     total_duration = accumulated;
+
+    // Pre-allocate a GPU-compressed texture via RenderingDevice.
+    // Detect HAP format from the first frame to set the correct BC format.
+    {
+        unsigned int hap_fmt = HapTextureFormat_RGB_DXT1;
+        if (!frames.empty()) {
+            std::vector<uint8_t> probe(frames[0].size);
+            fseek(file, static_cast<long>(frames[0].offset), SEEK_SET);
+            if (fread(probe.data(), 1, frames[0].size, file) == frames[0].size) {
+                unsigned int detected = 0;
+                if (HapGetFrameTextureFormat(probe.data(), frames[0].size, 0, &detected) == HapResult_No_Error) {
+                    hap_fmt = detected;
+                }
+            }
+        }
+
+        RenderingDevice *rd = RenderingServer::get_singleton()->get_rendering_device();
+        if (rd) {
+            RenderingDevice::DataFormat rd_fmt = hap_to_rd_format(hap_fmt);
+            size_t blank_size = dxt_buffer_size(hap_fmt, width, height);
+
+            PackedByteArray blank;
+            blank.resize(static_cast<int64_t>(blank_size));
+            blank.fill(0);
+
+            Ref<RDTextureFormat> tf;
+            tf.instantiate();
+            tf->set_format(rd_fmt);
+            tf->set_width(static_cast<uint32_t>(width));
+            tf->set_height(static_cast<uint32_t>(height));
+            tf->set_depth(1);
+            tf->set_array_layers(1);
+            tf->set_mipmaps(1);
+            tf->set_texture_type(RenderingDevice::TEXTURE_TYPE_2D);
+            tf->set_usage_bits(RenderingDevice::TEXTURE_USAGE_SAMPLING_BIT |
+                               RenderingDevice::TEXTURE_USAGE_CAN_UPDATE_BIT);
+
+            TypedArray<PackedByteArray> init_data;
+            init_data.push_back(blank);
+
+            Ref<RDTextureView> tv;
+            tv.instantiate();
+            texture_rid = rd->texture_create(tf, tv, init_data);
+
+            texture.instantiate();
+            texture->set_texture_rd_rid(texture_rid);
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -315,6 +373,13 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
 // ---------------------------------------------------------------------------
 
 GDHapVideoStreamPlayback::~GDHapVideoStreamPlayback() {
+    if (texture_rid.is_valid()) {
+        RenderingDevice *rd = RenderingServer::get_singleton()->get_rendering_device();
+        if (rd) {
+            rd->free_rid(texture_rid);
+        }
+        texture_rid = RID();
+    }
     if (file) {
         MP4D_close(&mp4);
         fclose(file);
