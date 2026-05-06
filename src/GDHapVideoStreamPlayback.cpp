@@ -16,11 +16,9 @@ using namespace godot;
 // ---------------------------------------------------------------------------
 
 int GDHapVideoStreamPlayback::read_callback(int64_t offset, void *buffer, size_t size, void *token) {
-    FILE *f = static_cast<FILE *>(token);
-    if (fseek(f, static_cast<long>(offset), SEEK_SET)) {
-        return 1;
-    }
-    return fread(buffer, 1, size, f) != size;
+    FileAccess *fa = static_cast<FileAccess *>(token);
+    fa->seek(static_cast<uint64_t>(offset));
+    return fa->get_buffer(static_cast<uint8_t *>(buffer), static_cast<uint64_t>(size)) != size;
 }
 
 // ---------------------------------------------------------------------------
@@ -80,24 +78,23 @@ size_t GDHapVideoStreamPlayback::dxt_buffer_size(unsigned int hap_format, int w,
 bool GDHapVideoStreamPlayback::read_hap_dimensions() {
     static const uint8_t hap_suffixes[] = {0x31, 0x35, 0x59, 0x4D, 0x41};  // 1, 5, Y, M, A
 
-    fseek(_file, 0, SEEK_END);
-    long fsize = ftell(_file);
+    int64_t fsize = static_cast<int64_t>(_file->get_length());
 
-    const long scan_block = 2 * 1024 * 1024;
+    const int64_t scan_block = 2 * 1024 * 1024;
     // Try end of file first (moov is usually at end for recorded files)
     // Then try beginning (faststart/web-optimized files)
-    long scan_offsets[] = {
-        std::max(0L, fsize - scan_block),
-        0L
+    int64_t scan_offsets[] = {
+        std::max(int64_t(0), fsize - scan_block),
+        int64_t(0)
     };
 
-    for (long scan_start : scan_offsets) {
-        long avail = fsize - scan_start;
+    for (int64_t scan_start : scan_offsets) {
+        int64_t avail = fsize - scan_start;
         if (avail <= 0) continue;
         size_t buf_size = static_cast<size_t>(std::min(avail, scan_block));
         std::vector<uint8_t> buf(buf_size);
-        fseek(_file, scan_start, SEEK_SET);
-        if (fread(buf.data(), 1, buf_size, _file) != buf_size) continue;
+        _file->seek(static_cast<uint64_t>(scan_start));
+        if (_file->get_buffer(buf.data(), buf_size) != buf_size) continue;
 
         for (size_t i = 4; i + 32 < buf_size; i++) {
             if (buf[i] != 0x48 || buf[i+1] != 0x61 || buf[i+2] != 0x70) continue;
@@ -150,8 +147,8 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
     const FrameInfo &fi = _frames[index];
 
     _read_buf.resize(fi.size);
-    fseek(_file, static_cast<long>(fi.offset), SEEK_SET);
-    if (fread(_read_buf.data(), 1, fi.size, _file) != fi.size) {
+    _file->seek(fi.offset);
+    if (_file->get_buffer(_read_buf.data(), fi.size) != fi.size) {
         return;
     }
 
@@ -167,14 +164,13 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
         return;
     }
 
-    // Fallback: derive dimensions from compressed block count if stsd had no width/height
     if (_width == 0 || _height == 0) {
         UtilityFunctions::push_error("GDHapVideoStream: width/height is 0, cannot decode frame");
         return;
     }
 
     size_t out_size = dxt_buffer_size(hap_format, _width, _height);
-    _decode_buf.resize(out_size);
+    _decode_buf.resize(static_cast<int64_t>(out_size));
 
     unsigned long bytes_used = 0;
     unsigned int out_format = 0;
@@ -182,7 +178,7 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
             _read_buf.data(), fi.size,
             0,
             hap_decode_callback, nullptr,
-            _decode_buf.data(), static_cast<unsigned long>(out_size),
+            _decode_buf.ptrw(), static_cast<unsigned long>(out_size),
             &bytes_used,
             &out_format);
 
@@ -195,10 +191,8 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
         return;
     }
 
-    PackedByteArray pba;
-    pba.resize(static_cast<int64_t>(bytes_used));
-    memcpy(pba.ptrw(), _decode_buf.data(), bytes_used);
-    rd->texture_update(_texture_rid, 0, pba);
+    _decode_buf.resize(static_cast<int64_t>(bytes_used));
+    rd->texture_update(_texture_rid, 0, _decode_buf);
 }
 
 // ---------------------------------------------------------------------------
@@ -206,35 +200,31 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
 // ---------------------------------------------------------------------------
 
 void GDHapVideoStreamPlayback::open(const String &p_path) {
-    if (_file) {
+    if (_file.is_valid()) {
         MP4D_close(&_mp4);
-        fclose(_file);
-        _file = nullptr;
+        _file.unref();
     }
 
-    _file = fopen(p_path.utf8().get_data(), "rb");
-    if (!_file) {
+    _file = FileAccess::open(p_path, FileAccess::READ);
+    if (!_file.is_valid()) {
         UtilityFunctions::push_error("GDHapVideoStream: cannot open file: ", p_path);
         return;
     }
 
-    fseek(_file, 0, SEEK_END);
-    long file_size = ftell(_file);
-    fseek(_file, 0, SEEK_SET);
+    int64_t file_size = static_cast<int64_t>(_file->get_length());
 
     // Read first box header for diagnostics
-    char hdr[8] = {};
-    fread(hdr, 1, 8, _file);
-    fseek(_file, 0, SEEK_SET);
-    String first_box = String::utf8(hdr + 4, 4);
+    uint8_t hdr[8] = {};
+    _file->get_buffer(hdr, 8);
+    _file->seek(0);
+    String first_box = String::utf8(reinterpret_cast<const char *>(hdr + 4), 4);
 
     _mp4 = {};
-    if (!MP4D_open(&_mp4, read_callback, _file, file_size)) {
+    if (!MP4D_open(&_mp4, read_callback, _file.ptr(), file_size)) {
         UtilityFunctions::push_error(
                 "GDHapVideoStream: failed to parse MP4 [first_box=", first_box,
-                " file_size=", (int64_t)file_size, "]: ", p_path);
-        fclose(_file);
-        _file = nullptr;
+                " file_size=", file_size, "]: ", p_path);
+        _file.unref();
         return;
     }
 
@@ -262,8 +252,7 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
     if (_video_track < 0) {
         UtilityFunctions::push_error("GDHapVideoStream: no video track found in: ", p_path);
         MP4D_close(&_mp4);
-        fclose(_file);
-        _file = nullptr;
+        _file.unref();
         return;
     }
 
@@ -273,8 +262,7 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
     if ((_width == 0 || _height == 0) && !read_hap_dimensions()) {
         UtilityFunctions::push_error("GDHapVideoStream: cannot determine video dimensions: ", p_path);
         MP4D_close(&_mp4);
-        fclose(_file);
-        _file = nullptr;
+        _file.unref();
         return;
     }
     _frame_count = track.sample_count;
@@ -302,8 +290,8 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
         unsigned int hap_fmt = HapTextureFormat_RGB_DXT1;
         if (!_frames.empty()) {
             std::vector<uint8_t> probe(_frames[0].size);
-            fseek(_file, static_cast<long>(_frames[0].offset), SEEK_SET);
-            if (fread(probe.data(), 1, _frames[0].size, _file) == _frames[0].size) {
+            _file->seek(_frames[0].offset);
+            if (_file->get_buffer(probe.data(), _frames[0].size) == _frames[0].size) {
                 unsigned int detected = 0;
                 if (HapGetFrameTextureFormat(probe.data(), _frames[0].size, 0, &detected) == HapResult_No_Error) {
                     hap_fmt = detected;
@@ -358,10 +346,8 @@ GDHapVideoStreamPlayback::~GDHapVideoStreamPlayback() {
         }
         _texture_rid = RID();
     }
-    if (_file) {
+    if (_file.is_valid()) {
         MP4D_close(&_mp4);
-        fclose(_file);
-        _file = nullptr;
     }
 }
 
@@ -370,7 +356,7 @@ GDHapVideoStreamPlayback::~GDHapVideoStreamPlayback() {
 // ---------------------------------------------------------------------------
 
 void GDHapVideoStreamPlayback::_play() {
-    if (!_file) {
+    if (!_file.is_valid()) {
         return;
     }
     _time = 0.0;
@@ -412,7 +398,7 @@ void GDHapVideoStreamPlayback::_seek(double p_time) {
 }
 
 void GDHapVideoStreamPlayback::_update(double p_delta) {
-    if (!_playing || _paused || !_file) {
+    if (!_playing || _paused || !_file.is_valid()) {
         return;
     }
 

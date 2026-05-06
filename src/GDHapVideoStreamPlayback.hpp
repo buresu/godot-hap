@@ -1,8 +1,8 @@
 #pragma once
 
-#include <cstdio>
 #include <vector>
 
+#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/rendering_device.hpp>
 #include <godot_cpp/classes/rendering_server.hpp>
 #include <godot_cpp/classes/texture2drd.hpp>
@@ -48,7 +48,7 @@ private:
         unsigned size;
     };
 
-    FILE *_file = nullptr;
+    Ref<FileAccess> _file;
     MP4D_demux_t _mp4 = {};
     int _video_track = -1;
 
@@ -59,7 +59,7 @@ private:
 
     std::vector<FrameInfo> _frames;
     std::vector<uint8_t> _read_buf;
-    std::vector<uint8_t> _decode_buf;
+    PackedByteArray _decode_buf;
 
     Ref<Texture2DRD> _texture;
     RID _texture_rid;
