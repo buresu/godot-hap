@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/video_stream_playback.hpp>
 
+#define MP4D_64BIT_SUPPORTED 1
 #include "minimp4.h"
 
 #include "hap.h"
