@@ -8,7 +8,7 @@ Please set the ycocg.gdshader included with the add-on as the material for your 
 ## Convert HAP with FFmpeg
 FFmpeg is a convenient tool for converting videos to HAP format.  
 ```
-ffmpeg -i input.mp4 -vcodec hap -format [hap|hap_alpha|hap_q] output.mov
+ffmpeg -i input.mp4 -vcodec hap -format [hap_alpha|hap_q] output.mov
 ```
 
 ## Build
