@@ -12,4 +12,4 @@ config_version=5
 
 config/name="godot-hap demo"
 run/main_scene="res://scenes/hap_demo.tscn"
-config/features=PackedStringArray("4.2", "Forward Plus")
+config/features=PackedStringArray("4.6", "Forward Plus")

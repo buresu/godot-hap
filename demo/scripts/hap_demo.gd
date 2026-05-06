@@ -17,10 +17,8 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if player.stream == null:
 		return
-	var pos: float = player.get_playback_position()
-	var len: float = 0.0
-	if player.stream:
-		len = player.stream.get_length()
+	var pos: float = player.get_stream_position()
+	var len: float = player.get_stream_length()
 	status_label.text = "%.2f / %.2f sec" % [pos, len]
 
 func _on_open_pressed() -> void:
