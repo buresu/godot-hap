@@ -18,48 +18,6 @@ namespace godot {
 class GDHapVideoStreamPlayback : public VideoStreamPlayback {
     GDCLASS(GDHapVideoStreamPlayback, VideoStreamPlayback)
 
-    struct FrameInfo {
-        double time;
-        double duration;
-        MP4D_file_offset_t offset;
-        unsigned size;
-    };
-
-    FILE *file = nullptr;
-    MP4D_demux_t mp4 = {};
-    int video_track = -1;
-
-    int width = 0;
-    int height = 0;
-    unsigned int frame_count = 0;
-    double total_duration = 0.0;
-
-    std::vector<FrameInfo> frames;
-    std::vector<uint8_t> read_buf;
-    std::vector<uint8_t> decode_buf;
-
-    Ref<Texture2DRD> texture;
-    RID texture_rid;
-    unsigned int video_hap_format = 0;
-
-    double time = 0.0;
-    int current_frame = -1;
-    bool playing = false;
-    bool paused = false;
-
-    static int read_callback(int64_t offset, void *buffer, size_t size, void *token);
-    static void hap_decode_callback(HapDecodeWorkFunction function, void *p, unsigned int count, void *info);
-
-    static RenderingDevice::DataFormat hap_to_rd_format(unsigned int hap_format);
-    static size_t dxt_buffer_size(unsigned int hap_format, int w, int h);
-
-    int find_frame(double p_time) const;
-    void decode_frame(int index);
-    bool read_hap_dimensions();
-
-protected:
-    static void _bind_methods();
-
 public:
     ~GDHapVideoStreamPlayback();
 
@@ -78,6 +36,49 @@ public:
     Ref<Texture2D> _get_texture() const override;
     int _get_channels() const override { return 0; }
     int32_t _get_mix_rate() const override { return 0; }
+
+protected:
+    static void _bind_methods();
+
+private:
+    struct FrameInfo {
+        double time;
+        double duration;
+        MP4D_file_offset_t offset;
+        unsigned size;
+    };
+
+    FILE *_file = nullptr;
+    MP4D_demux_t _mp4 = {};
+    int _video_track = -1;
+
+    int _width = 0;
+    int _height = 0;
+    unsigned int _frame_count = 0;
+    double _total_duration = 0.0;
+
+    std::vector<FrameInfo> _frames;
+    std::vector<uint8_t> _read_buf;
+    std::vector<uint8_t> _decode_buf;
+
+    Ref<Texture2DRD> _texture;
+    RID _texture_rid;
+    unsigned int _video_hap_format = 0;
+
+    double _time = 0.0;
+    int _current_frame = -1;
+    bool _playing = false;
+    bool _paused = false;
+
+    static int read_callback(int64_t offset, void *buffer, size_t size, void *token);
+    static void hap_decode_callback(HapDecodeWorkFunction function, void *p, unsigned int count, void *info);
+
+    static RenderingDevice::DataFormat hap_to_rd_format(unsigned int hap_format);
+    static size_t dxt_buffer_size(unsigned int hap_format, int w, int h);
+
+    int find_frame(double p_time) const;
+    void decode_frame(int index);
+    bool read_hap_dimensions();
 };
 
 } // namespace godot

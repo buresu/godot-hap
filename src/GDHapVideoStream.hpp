@@ -10,12 +10,12 @@ class GDHapVideoStreamPlayback;
 class GDHapVideoStream : public VideoStream {
     GDCLASS(GDHapVideoStream, VideoStream)
 
-protected:
-    static void _bind_methods();
-
 public:
     bool is_ycocg() const;
     Ref<VideoStreamPlayback> _instantiate_playback() override;
+
+protected:
+    static void _bind_methods();
 
 private:
     Ref<GDHapVideoStreamPlayback> _pb;
