@@ -1,0 +1,154 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }}, ${{ matrix.arch }}, ${{ matrix.config }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - os: windows
+            arch: x86_64
+            config: Debug
+            runner: windows-latest
+            cmake_args: -A x64
+            ext: dll
+          - os: windows
+            arch: x86_64
+            config: Release
+            runner: windows-latest
+            cmake_args: -A x64
+            ext: dll
+          - os: windows
+            arch: arm64
+            config: Debug
+            runner: windows-latest
+            cmake_args: -A ARM64
+            ext: dll
+          - os: windows
+            arch: arm64
+            config: Release
+            runner: windows-latest
+            cmake_args: -A ARM64
+            ext: dll
+          - os: macos
+            arch: x86_64
+            config: Debug
+            runner: macos-13
+            cmake_args: -DCMAKE_OSX_ARCHITECTURES=x86_64
+            ext: dylib
+          - os: macos
+            arch: x86_64
+            config: Release
+            runner: macos-13
+            cmake_args: -DCMAKE_OSX_ARCHITECTURES=x86_64
+            ext: dylib
+          - os: linux
+            arch: x86_64
+            config: Debug
+            runner: ubuntu-latest
+            cmake_args: ''
+            ext: so
+          - os: linux
+            arch: x86_64
+            config: Release
+            runner: ubuntu-latest
+            cmake_args: ''
+            ext: so
+          - os: linux
+            arch: arm64
+            config: Debug
+            runner: ubuntu-24.04-arm
+            cmake_args: ''
+            ext: so
+          - os: linux
+            arch: arm64
+            config: Release
+            runner: ubuntu-24.04-arm
+            cmake_args: ''
+            ext: so
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install SCons
+        run: pip install scons
+
+      - name: Get godot-cpp commit hash
+        id: godot-cpp-hash
+        shell: bash
+        run: echo "hash=$(git -C lib/godot-cpp rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Cache godot-cpp build
+        uses: actions/cache@v4
+        with:
+          path: lib/godot-cpp/bin
+          key: godot-cpp-${{ steps.godot-cpp-hash.outputs.hash }}-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.config }}
+
+      - name: Configure CMake
+        run: cmake -B build ${{ matrix.cmake_args }} -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.config }}
+
+      - name: Install
+        run: cmake --install build --config ${{ matrix.config }}
+
+      - name: Get library filename
+        id: lib-name
+        shell: bash
+        run: |
+          config_lower=$(echo "${{ matrix.config }}" | tr '[:upper:]' '[:lower:]')
+          echo "name=libgodot-hap.${{ matrix.os }}.${config_lower}.${{ matrix.arch }}.${{ matrix.ext }}" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lib-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.config }}
+          path: demo/addons/godot-hap/bin/${{ steps.lib-name.outputs.name }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Prepare release package
+        run: |
+          mkdir -p release/addons/godot-hap/bin
+          cp artifacts/* release/addons/godot-hap/bin/
+          cp demo/addons/godot-hap/godot-hap.gdextension release/addons/godot-hap/
+          cp demo/addons/godot-hap/godot-hap.gdextension.uid release/addons/godot-hap/
+          cp -r demo/addons/godot-hap/shaders release/addons/godot-hap/
+          cd release
+          zip -r ../godot-hap-${{ github.ref_name }}.zip .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: godot-hap-${{ github.ref_name }}.zip
+          generate_release_notes: true
