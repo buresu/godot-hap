@@ -1,11 +1,10 @@
 #define MINIMP4_IMPLEMENTATION
 #include "GDHapVideoStreamPlayback.hpp"
 
-#include <algorithm>
-
 #include <godot_cpp/classes/rd_texture_format.hpp>
 #include <godot_cpp/classes/rd_texture_view.hpp>
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/variant/typed_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -84,28 +83,31 @@ bool GDHapVideoStreamPlayback::read_hap_dimensions() {
     // Try end of file first (moov is usually at end for recorded files)
     // Then try beginning (faststart/web-optimized files)
     int64_t scan_offsets[] = {
-        std::max(int64_t(0), fsize - scan_block),
+        MAX(int64_t(0), fsize - scan_block),
         int64_t(0)
     };
 
     for (int64_t scan_start : scan_offsets) {
         int64_t avail = fsize - scan_start;
         if (avail <= 0) continue;
-        size_t buf_size = static_cast<size_t>(std::min(avail, scan_block));
-        std::vector<uint8_t> buf(buf_size);
-        _file->seek(static_cast<uint64_t>(scan_start));
-        if (_file->get_buffer(buf.data(), buf_size) != buf_size) continue;
+        int64_t buf_size = MIN(avail, scan_block);
 
-        for (size_t i = 4; i + 32 < buf_size; i++) {
-            if (buf[i] != 0x48 || buf[i+1] != 0x61 || buf[i+2] != 0x70) continue;
+        PackedByteArray buf;
+        buf.resize(buf_size);
+        _file->seek(static_cast<uint64_t>(scan_start));
+        if (_file->get_buffer(buf.ptrw(), buf_size) != static_cast<uint64_t>(buf_size)) continue;
+
+        const uint8_t *p = buf.ptr();
+        for (int64_t i = 4; i + 32 < buf_size; i++) {
+            if (p[i] != 0x48 || p[i+1] != 0x61 || p[i+2] != 0x70) continue;
             bool is_hap = false;
             for (uint8_t suf : hap_suffixes) {
-                if (buf[i+3] == suf) { is_hap = true; break; }
+                if (p[i+3] == suf) { is_hap = true; break; }
             }
             if (!is_hap) continue;
 
-            int w = (buf[i+28] << 8) | buf[i+29];
-            int h = (buf[i+30] << 8) | buf[i+31];
+            int w = (p[i+28] << 8) | p[i+29];
+            int h = (p[i+30] << 8) | p[i+31];
             if (w > 0 && h > 0 && w <= 65535 && h <= 65535) {
                 _width = w;
                 _height = h;
@@ -121,7 +123,7 @@ bool GDHapVideoStreamPlayback::read_hap_dimensions() {
 // ---------------------------------------------------------------------------
 
 int GDHapVideoStreamPlayback::find_frame(double p_time) const {
-    if (_frames.empty()) {
+    if (_frames.is_empty()) {
         return 0;
     }
     int lo = 0, hi = static_cast<int>(_frames.size()) - 1;
@@ -148,12 +150,12 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
 
     _read_buf.resize(fi.size);
     _file->seek(fi.offset);
-    if (_file->get_buffer(_read_buf.data(), fi.size) != fi.size) {
+    if (_file->get_buffer(_read_buf.ptrw(), fi.size) != fi.size) {
         return;
     }
 
     unsigned int hap_format = 0;
-    if (HapGetFrameTextureFormat(_read_buf.data(), fi.size, 0, &hap_format) != HapResult_No_Error) {
+    if (HapGetFrameTextureFormat(_read_buf.ptr(), fi.size, 0, &hap_format) != HapResult_No_Error) {
         UtilityFunctions::push_error("GDHapVideoStream: HapGetFrameTextureFormat failed at frame ", index);
         return;
     }
@@ -175,7 +177,7 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
     unsigned long bytes_used = 0;
     unsigned int out_format = 0;
     unsigned int result = HapDecode(
-            _read_buf.data(), fi.size,
+            _read_buf.ptr(), fi.size,
             0,
             hap_decode_callback, nullptr,
             _decode_buf.ptrw(), static_cast<unsigned long>(out_size),
@@ -288,12 +290,12 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
     // Hap Q color conversion is handled by a GPU shader.
     {
         unsigned int hap_fmt = HapTextureFormat_RGB_DXT1;
-        if (!_frames.empty()) {
-            std::vector<uint8_t> probe(_frames[0].size);
+        if (!_frames.is_empty()) {
+            _read_buf.resize(_frames[0].size);
             _file->seek(_frames[0].offset);
-            if (_file->get_buffer(probe.data(), _frames[0].size) == _frames[0].size) {
+            if (_file->get_buffer(_read_buf.ptrw(), _frames[0].size) == _frames[0].size) {
                 unsigned int detected = 0;
-                if (HapGetFrameTextureFormat(probe.data(), _frames[0].size, 0, &detected) == HapResult_No_Error) {
+                if (HapGetFrameTextureFormat(_read_buf.ptr(), _frames[0].size, 0, &detected) == HapResult_No_Error) {
                     hap_fmt = detected;
                 }
             }

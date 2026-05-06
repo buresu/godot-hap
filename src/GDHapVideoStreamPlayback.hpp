@@ -1,12 +1,11 @@
 #pragma once
 
-#include <vector>
-
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/rendering_device.hpp>
 #include <godot_cpp/classes/rendering_server.hpp>
 #include <godot_cpp/classes/texture2drd.hpp>
 #include <godot_cpp/classes/video_stream_playback.hpp>
+#include <godot_cpp/templates/local_vector.hpp>
 
 #define MP4D_64BIT_SUPPORTED 1
 #include "minimp4.h"
@@ -57,8 +56,8 @@ private:
     unsigned int _frame_count = 0;
     double _total_duration = 0.0;
 
-    std::vector<FrameInfo> _frames;
-    std::vector<uint8_t> _read_buf;
+    LocalVector<FrameInfo> _frames;
+    PackedByteArray _read_buf;
     PackedByteArray _decode_buf;
 
     Ref<Texture2DRD> _texture;
