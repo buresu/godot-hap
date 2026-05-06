@@ -1,6 +1,8 @@
 #define MINIMP4_IMPLEMENTATION
 #include "GDHapVideoStreamPlayback.hpp"
 
+#include <algorithm>
+
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -66,6 +68,58 @@ size_t GDHapVideoStreamPlayback::dxt_buffer_size(unsigned int hap_format, int w,
 }
 
 // ---------------------------------------------------------------------------
+// Scan file for HAP VisualSampleEntry to extract width/height.
+// minimp4 skips unknown codec boxes, so HAP track dimensions stay 0.
+// The VisualSampleEntry structure has width at byte 32 and height at byte 34
+// from the start of the box (FourCC is at byte 4), i.e., FourCC+28 / FourCC+30.
+// ---------------------------------------------------------------------------
+
+bool GDHapVideoStreamPlayback::read_hap_dimensions() {
+    static const uint8_t hap_prefixes[][3] = {
+        {0x48, 0x61, 0x70},  // 'Hap' prefix for Hap1, Hap5, HapY, HapM, HapA
+    };
+    static const uint8_t hap_suffixes[] = {0x31, 0x35, 0x59, 0x4D, 0x41};  // 1, 5, Y, M, A
+
+    fseek(file, 0, SEEK_END);
+    long fsize = ftell(file);
+
+    const long scan_block = 2 * 1024 * 1024;
+    // Try end of file first (moov is usually at end for recorded files)
+    // Then try beginning (faststart/web-optimized files)
+    long scan_offsets[] = {
+        std::max(0L, fsize - scan_block),
+        0L
+    };
+
+    for (long scan_start : scan_offsets) {
+        long avail = fsize - scan_start;
+        if (avail <= 0) continue;
+        size_t buf_size = static_cast<size_t>(std::min(avail, scan_block));
+        std::vector<uint8_t> buf(buf_size);
+        fseek(file, scan_start, SEEK_SET);
+        if (fread(buf.data(), 1, buf_size, file) != buf_size) continue;
+
+        for (size_t i = 4; i + 32 < buf_size; i++) {
+            if (buf[i] != 0x48 || buf[i+1] != 0x61 || buf[i+2] != 0x70) continue;
+            bool is_hap = false;
+            for (uint8_t suf : hap_suffixes) {
+                if (buf[i+3] == suf) { is_hap = true; break; }
+            }
+            if (!is_hap) continue;
+
+            int w = (buf[i+28] << 8) | buf[i+29];
+            int h = (buf[i+30] << 8) | buf[i+31];
+            if (w > 0 && h > 0 && w <= 65535 && h <= 65535) {
+                width = w;
+                height = h;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// ---------------------------------------------------------------------------
 // Seek helper: find frame index covering p_time
 // ---------------------------------------------------------------------------
 
@@ -103,11 +157,19 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
 
     unsigned int hap_format = 0;
     if (HapGetFrameTextureFormat(read_buf.data(), fi.size, 0, &hap_format) != HapResult_No_Error) {
+        UtilityFunctions::push_error("GDHapVideoStream: HapGetFrameTextureFormat failed at frame ", index);
         return;
     }
 
     Image::Format fmt = hap_to_godot_format(hap_format);
     if (fmt == Image::FORMAT_MAX) {
+        UtilityFunctions::push_error("GDHapVideoStream: unsupported HAP format ", (int)hap_format);
+        return;
+    }
+
+    // Fallback: derive dimensions from compressed block count if stsd had no width/height
+    if (width == 0 || height == 0) {
+        UtilityFunctions::push_error("GDHapVideoStream: width/height is 0, cannot decode frame");
         return;
     }
 
@@ -166,9 +228,17 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
     long file_size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
+    // Read first box header for diagnostics
+    char hdr[8] = {};
+    fread(hdr, 1, 8, file);
+    fseek(file, 0, SEEK_SET);
+    String first_box = String::utf8(hdr + 4, 4);
+
     mp4 = {};
     if (!MP4D_open(&mp4, read_callback, file, file_size)) {
-        UtilityFunctions::push_error("GDHapVideoStream: failed to parse MP4: ", p_path);
+        UtilityFunctions::push_error(
+                "GDHapVideoStream: failed to parse MP4 [first_box=", first_box,
+                " file_size=", (int64_t)file_size, "]: ", p_path);
         fclose(file);
         file = nullptr;
         return;
@@ -179,6 +249,20 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
         if (mp4.track[i].handler_type == MP4D_HANDLER_TYPE_VIDE) {
             video_track = static_cast<int>(i);
             break;
+        }
+    }
+    // Some MOV files have a second hdlr (data handler 'url ') inside minf that
+    // overwrites the media handler type set by the hdlr in mdia. Fall back to
+    // finding any track that has samples and no audio-specific fields set.
+    if (video_track < 0) {
+        for (unsigned int i = 0; i < mp4.track_count; i++) {
+            const MP4D_track_t &tr = mp4.track[i];
+            if (tr.sample_count > 0 &&
+                    tr.SampleDescription.audio.channelcount == 0 &&
+                    tr.SampleDescription.audio.samplerate_hz == 0) {
+                video_track = static_cast<int>(i);
+                break;
+            }
         }
     }
     if (video_track < 0) {
@@ -192,7 +276,17 @@ void GDHapVideoStreamPlayback::open(const String &p_path) {
     const MP4D_track_t &track = mp4.track[video_track];
     width = static_cast<int>(track.SampleDescription.video.width);
     height = static_cast<int>(track.SampleDescription.video.height);
+    if ((width == 0 || height == 0) && !read_hap_dimensions()) {
+        UtilityFunctions::push_error("GDHapVideoStream: cannot determine video dimensions: ", p_path);
+        MP4D_close(&mp4);
+        fclose(file);
+        file = nullptr;
+        return;
+    }
     frame_count = track.sample_count;
+
+    UtilityFunctions::print("GDHapVideoStream: video_track=", video_track,
+            " size=", width, "x", height, " frames=", frame_count);
 
     double timescale = static_cast<double>(track.timescale);
 

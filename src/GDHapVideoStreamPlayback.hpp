@@ -53,6 +53,7 @@ class GDHapVideoStreamPlayback : public VideoStreamPlayback {
 
     int find_frame(double p_time) const;
     void decode_frame(int index);
+    bool read_hap_dimensions();
 
 protected:
     static void _bind_methods();
