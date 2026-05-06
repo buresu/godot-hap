@@ -3,7 +3,6 @@
 #include <cstdio>
 #include <vector>
 
-#include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/rendering_device.hpp>
 #include <godot_cpp/classes/rendering_server.hpp>
 #include <godot_cpp/classes/texture2drd.hpp>
@@ -51,7 +50,6 @@ class GDHapVideoStreamPlayback : public VideoStreamPlayback {
     static int read_callback(int64_t offset, void *buffer, size_t size, void *token);
     static void hap_decode_callback(HapDecodeWorkFunction function, void *p, unsigned int count, void *info);
 
-    static Image::Format hap_to_godot_format(unsigned int hap_format);
     static RenderingDevice::DataFormat hap_to_rd_format(unsigned int hap_format);
     static size_t dxt_buffer_size(unsigned int hap_format, int w, int h);
 

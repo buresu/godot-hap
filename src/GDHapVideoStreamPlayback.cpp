@@ -38,26 +38,6 @@ void GDHapVideoStreamPlayback::hap_decode_callback(
 // Format helpers
 // ---------------------------------------------------------------------------
 
-Image::Format GDHapVideoStreamPlayback::hap_to_godot_format(unsigned int hap_format) {
-    switch (hap_format) {
-        case HapTextureFormat_RGB_DXT1:
-            return Image::FORMAT_DXT1;
-        case HapTextureFormat_RGBA_DXT5:
-        case HapTextureFormat_YCoCg_DXT5:
-            return Image::FORMAT_DXT5;
-        case HapTextureFormat_A_RGTC1:
-            return Image::FORMAT_RGTC_R;
-        case HapTextureFormat_RGBA_BPTC_UNORM:
-            return Image::FORMAT_BPTC_RGBA;
-        case HapTextureFormat_RGB_BPTC_UNSIGNED_FLOAT:
-            return Image::FORMAT_BPTC_RGBFU;
-        case HapTextureFormat_RGB_BPTC_SIGNED_FLOAT:
-            return Image::FORMAT_BPTC_RGBF;
-        default:
-            return Image::FORMAT_MAX;
-    }
-}
-
 RenderingDevice::DataFormat GDHapVideoStreamPlayback::hap_to_rd_format(unsigned int hap_format) {
     switch (hap_format) {
         case HapTextureFormat_RGB_DXT1:
@@ -184,8 +164,8 @@ void GDHapVideoStreamPlayback::decode_frame(int index) {
         return;
     }
 
-    Image::Format fmt = hap_to_godot_format(hap_format);
-    if (fmt == Image::FORMAT_MAX) {
+    RenderingDevice::DataFormat fmt = hap_to_rd_format(hap_format);
+    if (fmt == RenderingDevice::DATA_FORMAT_MAX) {
         UtilityFunctions::push_error("GDHapVideoStream: unsupported HAP format ", (int)hap_format);
         return;
     }
