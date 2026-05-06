@@ -39,14 +39,14 @@ jobs:
           - os: macos
             arch: x86_64
             config: Debug
-            runner: macos-13
-            cmake_args: -DCMAKE_OSX_ARCHITECTURES=x86_64
+            runner: macos-latest
+            cmake_args: ''
             ext: dylib
           - os: macos
             arch: x86_64
             config: Release
-            runner: macos-13
-            cmake_args: -DCMAKE_OSX_ARCHITECTURES=x86_64
+            runner: macos-latest
+            cmake_args: ''
             ext: dylib
           - os: linux
             arch: x86_64
