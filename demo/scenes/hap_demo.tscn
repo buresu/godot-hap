@@ -57,6 +57,7 @@ text = "Stop"
 [node name="FileDialog" type="FileDialog" parent="." unique_id=1333615053]
 title = "Open a File"
 size = Vector2i(800, 600)
-access = 2
 file_mode = 0
+access = 2
 filters = PackedStringArray("*.mov ; HAP Video", "*.mp4 ; HAP Video (MP4)")
+use_native_dialog = true
