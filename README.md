@@ -23,7 +23,7 @@ cmake --build . --config [Debug|Release] --target install
 
 [Mac, Linux]
 cmake -DCMAKE_BUILD_TYPE=[Debug|Release] ..
-cmale --build . --target install
+cmake --build . --target install
 ```
 
 ## License
