@@ -25,7 +25,7 @@ func _on_open_pressed() -> void:
 	file_dialog.popup_centered()
 
 func _on_file_selected(path: String) -> void:
-	var stream: GDHapVideoStream = GDHapVideoStream.new()
+	var stream: VideoStreamHap = VideoStreamHap.new()
 	stream.file = path
 	player.stream = stream
 	player.play()

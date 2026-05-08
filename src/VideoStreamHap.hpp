@@ -5,10 +5,10 @@
 
 namespace godot {
 
-class GDHapVideoStreamPlayback;
+class VideoStreamPlaybackHap;
 
-class GDHapVideoStream : public VideoStream {
-    GDCLASS(GDHapVideoStream, VideoStream)
+class VideoStreamHap : public VideoStream {
+    GDCLASS(VideoStreamHap, VideoStream)
 
 public:
     bool is_ycocg() const;
@@ -18,7 +18,7 @@ protected:
     static void _bind_methods();
 
 private:
-    Ref<GDHapVideoStreamPlayback> _pb;
+    Ref<VideoStreamPlaybackHap> _pb;
 };
 
 } // namespace godot

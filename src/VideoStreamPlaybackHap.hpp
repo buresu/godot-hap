@@ -14,11 +14,11 @@
 
 namespace godot {
 
-class GDHapVideoStreamPlayback : public VideoStreamPlayback {
-    GDCLASS(GDHapVideoStreamPlayback, VideoStreamPlayback)
+class VideoStreamPlaybackHap : public VideoStreamPlayback {
+    GDCLASS(VideoStreamPlaybackHap, VideoStreamPlayback)
 
 public:
-    ~GDHapVideoStreamPlayback();
+    ~VideoStreamPlaybackHap();
 
     void open(const String &p_path);
     bool is_ycocg() const;

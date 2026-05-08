@@ -4,8 +4,8 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
-#include "GDHapVideoStream.hpp"
-#include "GDHapVideoStreamPlayback.hpp"
+#include "VideoStreamHap.hpp"
+#include "VideoStreamPlaybackHap.hpp"
 
 using namespace godot;
 
@@ -13,8 +13,8 @@ void initialize_godot_hap_module(ModuleInitializationLevel p_level) {
     if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
         return;
     }
-    GDREGISTER_CLASS(GDHapVideoStream);
-    GDREGISTER_CLASS(GDHapVideoStreamPlayback);
+    GDREGISTER_CLASS(VideoStreamHap);
+    GDREGISTER_CLASS(VideoStreamPlaybackHap);
 }
 
 void uninitialize_godot_hap_module(ModuleInitializationLevel p_level) {
