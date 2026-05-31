@@ -334,6 +334,8 @@ void VideoStreamPlaybackHap::open(const String &p_path) {
             _texture->set_texture_rd_rid(_texture_rid);
         }
     }
+
+    decode_frame(0);
 }
 
 // ---------------------------------------------------------------------------
