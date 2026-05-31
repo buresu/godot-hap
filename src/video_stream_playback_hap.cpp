@@ -398,7 +398,8 @@ double VideoStreamPlaybackHap::_get_playback_position() const {
 
 void VideoStreamPlaybackHap::_seek(double p_time) {
     _time = CLAMP(p_time, 0.0, _total_duration);
-    _current_frame = -1;
+    _current_frame = find_frame(_time);
+    decode_frame(_current_frame);
 }
 
 void VideoStreamPlaybackHap::_update(double p_delta) {

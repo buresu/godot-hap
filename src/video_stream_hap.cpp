@@ -7,13 +7,6 @@ using namespace godot;
 
 void VideoStreamHap::_bind_methods() {
     ClassDB::bind_method(D_METHOD("is_ycocg"), &VideoStreamHap::is_ycocg);
-    ClassDB::bind_method(D_METHOD("seek", "time"), &VideoStreamHap::seek);
-}
-
-void VideoStreamHap::seek(double p_time) {
-    if (_pb.is_valid()) {
-        _pb->_seek(p_time);
-    }
 }
 
 bool VideoStreamHap::is_ycocg() const {

@@ -55,7 +55,7 @@ func _on_seek_drag_started() -> void:
 
 func _on_seek_value_changed(value: float) -> void:
 	if _seeking and player.stream != null:
-		(player.stream as VideoStreamHap).seek(value)
+		player.stream_position = value
 
 func _on_seek_drag_ended(_value_changed: bool) -> void:
 	_seeking = false
@@ -63,7 +63,10 @@ func _on_seek_drag_ended(_value_changed: bool) -> void:
 func _on_play_pause_pressed() -> void:
 	match _state:
 		State.IDLE:
+			var pos := player.stream_position
 			player.play()
+			if pos > 0.0:
+				player.stream_position = pos
 			_set_state(State.PLAYING)
 		State.PLAYING:
 			player.paused = true
@@ -74,7 +77,6 @@ func _on_play_pause_pressed() -> void:
 
 func _on_stop_pressed() -> void:
 	player.stop()
-	seek_bar.set_value_no_signal(0.0)
 	_set_state(State.IDLE)
 	status_label.text = "Stopped"
 
@@ -89,8 +91,7 @@ func _set_state(state: State) -> void:
 			play_pause_button.text = "Play"
 			play_pause_button.disabled = player.stream == null
 			stop_button.disabled = true
-			seek_bar.editable = false
-			seek_bar.set_value_no_signal(0.0)
+			seek_bar.editable = player.stream != null
 		State.PLAYING:
 			play_pause_button.text = "Pause"
 			play_pause_button.disabled = false
