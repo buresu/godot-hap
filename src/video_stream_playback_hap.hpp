@@ -8,9 +8,9 @@
 #include <godot_cpp/templates/local_vector.hpp>
 
 #define MP4D_64BIT_SUPPORTED 1
-#include "minimp4.h"
+#include <minimp4.h>
 
-#include "hap.h"
+#include <hap.h>
 
 namespace godot {
 
