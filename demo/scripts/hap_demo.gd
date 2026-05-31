@@ -1,5 +1,7 @@
 extends Control
 
+enum State { IDLE, PLAYING, PAUSED }
+
 @onready var player: VideoStreamPlayer = $VideoStreamPlayer
 @onready var status_label: Label = $Overlay/StatusLabel
 @onready var seek_bar: HSlider = $Overlay/SeekBar
@@ -8,6 +10,7 @@ extends Control
 @onready var stop_button: Button = $Overlay/ButtonRow/StopButton
 @onready var file_dialog: FileDialog = $FileDialog
 
+var _state := State.IDLE
 var _seeking := false
 
 func _ready() -> void:
@@ -37,12 +40,8 @@ func _on_file_selected(path: String) -> void:
 	var stream: VideoStreamHap = VideoStreamHap.new()
 	stream.file = path
 	player.stream = stream
-	player.play()
-	seek_bar.editable = true
-	play_pause_button.disabled = false
-	stop_button.disabled = false
-	play_pause_button.text = "Pause"
-	status_label.text = "Playing: " + path.get_file()
+	_set_state(State.IDLE)
+	status_label.text = "Loaded: " + path.get_file()
 	await get_tree().process_frame
 	if player.stream != null and player.stream.is_ycocg():
 		var mat := ShaderMaterial.new()
@@ -62,22 +61,43 @@ func _on_seek_drag_ended(_value_changed: bool) -> void:
 	_seeking = false
 
 func _on_play_pause_pressed() -> void:
-	if player.is_playing():
-		player.paused = not player.paused
-		play_pause_button.text = "Resume" if player.paused else "Pause"
-	else:
-		player.play()
-		play_pause_button.text = "Pause"
+	match _state:
+		State.IDLE:
+			player.play()
+			_set_state(State.PLAYING)
+		State.PLAYING:
+			player.paused = true
+			_set_state(State.PAUSED)
+		State.PAUSED:
+			player.paused = false
+			_set_state(State.PLAYING)
 
 func _on_stop_pressed() -> void:
 	player.stop()
 	seek_bar.set_value_no_signal(0.0)
-	seek_bar.editable = false
-	play_pause_button.text = "Play"
-	play_pause_button.disabled = true
-	stop_button.disabled = true
+	_set_state(State.IDLE)
 	status_label.text = "Stopped"
 
 func _on_finished() -> void:
-	play_pause_button.text = "Play"
+	_set_state(State.IDLE)
 	status_label.text = "Finished"
+
+func _set_state(state: State) -> void:
+	_state = state
+	match state:
+		State.IDLE:
+			play_pause_button.text = "Play"
+			play_pause_button.disabled = player.stream == null
+			stop_button.disabled = true
+			seek_bar.editable = false
+			seek_bar.set_value_no_signal(0.0)
+		State.PLAYING:
+			play_pause_button.text = "Pause"
+			play_pause_button.disabled = false
+			stop_button.disabled = false
+			seek_bar.editable = true
+		State.PAUSED:
+			play_pause_button.text = "Resume"
+			play_pause_button.disabled = false
+			stop_button.disabled = false
+			seek_bar.editable = true
