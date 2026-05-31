@@ -38,9 +38,9 @@ horizontal_alignment = 1
 
 [node name="SeekBar" type="HSlider" parent="Overlay" unique_id=987654321]
 layout_mode = 2
-editable = false
 max_value = 1.0
 step = 0.01
+editable = false
 
 [node name="ButtonRow" type="HBoxContainer" parent="Overlay" unique_id=2079071751]
 layout_mode = 2
