@@ -1,5 +1,5 @@
 #define MINIMP4_IMPLEMENTATION
-#include "VideoStreamPlaybackHap.hpp"
+#include "video_stream_playback_hap.hpp"
 
 #include <godot_cpp/classes/rd_texture_format.hpp>
 #include <godot_cpp/classes/rd_texture_view.hpp>

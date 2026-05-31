@@ -1,5 +1,5 @@
-#include "VideoStreamHap.hpp"
-#include "VideoStreamPlaybackHap.hpp"
+#include "video_stream_hap.hpp"
+#include "video_stream_playback_hap.hpp"
 
 #include <godot_cpp/core/class_db.hpp>
 

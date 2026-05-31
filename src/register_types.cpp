@@ -4,8 +4,8 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
-#include "VideoStreamHap.hpp"
-#include "VideoStreamPlaybackHap.hpp"
+#include "video_stream_hap.hpp"
+#include "video_stream_playback_hap.hpp"
 
 using namespace godot;
 
