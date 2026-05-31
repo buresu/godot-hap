@@ -409,8 +409,8 @@ void VideoStreamPlaybackHap::_update(double p_delta) {
     _time += p_delta;
 
     if (_time >= _total_duration) {
-        _time = 0.0;
-        _current_frame = -1;
+        _stop();
+        return;
     }
 
     int target = find_frame(_time);
