@@ -12,6 +12,7 @@ class VideoStreamHap : public VideoStream {
 
 public:
     bool is_ycocg() const;
+    void seek(double p_time);
     Ref<VideoStreamPlayback> _instantiate_playback() override;
 
 protected:

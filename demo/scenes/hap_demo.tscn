@@ -26,7 +26,7 @@ anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -80.0
+offset_top = -120.0
 grow_horizontal = 2
 grow_vertical = 0
 
@@ -35,6 +35,12 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 16
 text = "No file loaded"
 horizontal_alignment = 1
+
+[node name="SeekBar" type="HSlider" parent="Overlay" unique_id=987654321]
+layout_mode = 2
+editable = false
+max_value = 1.0
+step = 0.01
 
 [node name="ButtonRow" type="HBoxContainer" parent="Overlay" unique_id=2079071751]
 layout_mode = 2
