@@ -40,8 +40,13 @@ func _on_file_selected(path: String) -> void:
 	var stream: VideoStreamHap = VideoStreamHap.new()
 	stream.file = path
 	player.stream = stream
-	_set_state(State.IDLE)
-	status_label.text = "Loaded: " + path.get_file()
+	if player.autoplay:
+		player.play()
+		_set_state(State.PLAYING)
+		status_label.text = "Playing: " + path.get_file()
+	else:
+		_set_state(State.IDLE)
+		status_label.text = "Loaded: " + path.get_file()
 	await get_tree().process_frame
 	if player.stream != null and player.stream.is_ycocg():
 		var mat := ShaderMaterial.new()
